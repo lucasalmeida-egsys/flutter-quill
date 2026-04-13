@@ -17,11 +17,22 @@ String extractImageFileExtensionFromImageSource(String? imageSourcePath) {
     return defaultImageFileExtension;
   }
 
-  if (!imageSourcePath.contains('.')) {
+  final uri = Uri.tryParse(imageSourcePath);
+  final normalizedPath = (uri != null && uri.path.isNotEmpty)
+      ? uri.path
+      : imageSourcePath;
+
+  if (!normalizedPath.contains('.')) {
     return defaultImageFileExtension;
   }
 
-  return p.extension(imageSourcePath).replaceFirst('.', '');
+  final ext = p.extension(normalizedPath).replaceFirst('.', '').toLowerCase();
+
+  if (ext.isEmpty) {
+    return defaultImageFileExtension;
+  }
+
+  return ext;
 }
 
 // The [imageSourcePath] could be file, asset path or HTTP image URL.

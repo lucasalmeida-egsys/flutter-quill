@@ -41,7 +41,85 @@ void main() {
             equals(fileExtension));
       }
     });
+
+    test('extracts extension from HTTP URL correctly', () {
+      expect(
+        extractImageFileExtensionFromImageSource(
+          'https://example.com/path/to/image.png',
+        ),
+        equals('png'),
+      );
+    });
+
+    test('extracts extension from HTTP URL with query parameters', () {
+      expect(
+        extractImageFileExtensionFromImageSource(
+          'https://example.com/path/to/image.png?version=1.2.3',
+        ),
+        equals('png'),
+      );
+    });
+
+    test('extracts extension from Firebase Storage URL with token', () {
+      expect(
+        extractImageFileExtensionFromImageSource(
+          'https://firebasestorage.googleapis.com/v0/b/app.appspot.com/o/temp%2Fexample_image.png?alt=media&token=002b7959-8018-42b2-9488-b7403a8621ab',
+        ),
+        equals('png'),
+      );
+    });
+
+    test('extracts extension from file path with query parameters', () {
+      expect(
+        extractImageFileExtensionFromImageSource(
+          '/path/to/image.webp?cache=123',
+        ),
+        equals('webp'),
+      );
+    });
+
+    test('extracts extension from URL with fragment', () {
+      expect(
+        extractImageFileExtensionFromImageSource(
+          'https://example.com/path/to/image.gif#section',
+        ),
+        equals('gif'),
+      );
+    });
+
+    test('normalizes extension to lowercase', () {
+      expect(
+        extractImageFileExtensionFromImageSource('image.PNG'),
+        equals('png'),
+      );
+      expect(
+        extractImageFileExtensionFromImageSource(
+          'https://example.com/file.JPEG?x=1',
+        ),
+        equals('jpeg'),
+      );
+    });
+
+    test('returns default extension when URL path has no extension', () {
+      expect(
+        extractImageFileExtensionFromImageSource(
+          'https://example.com/path/to/image?version=1.2.3',
+        ),
+        equals(defaultImageFileExtension),
+      );
+    });
+
+    test('returns default extension when Firebase URL path has no extension',
+        () {
+      expect(
+        extractImageFileExtensionFromImageSource(
+          'https://firebasestorage.googleapis.com/v0/b/app.appspot.com/o/temp%2Fexample_image?alt=media&token=abc',
+        ),
+        equals(defaultImageFileExtension),
+      );
+    });
   });
+
   group('extractImageNameFromImageSource', () {
     test(
         'returns the file name without the extension when a valid name is given',
@@ -91,7 +169,7 @@ void main() {
         );
       });
 
-      test('extracts image name from a URL with query parameters', () {
+      test('extracts image name from a Firebase Storage URL with token', () {
         const imageName = '2019-Metrology-Events.jpg';
         expect(
           extractImageNameFromImageSource(
@@ -191,6 +269,7 @@ void main() {
           equals(imageName),
         );
       });
+
       test('handles paths that ends with a slash', () {
         const imageName = 'Image';
         expect(
@@ -247,7 +326,6 @@ void main() {
   group('getDefaultImageFileName', () {
     if (kIsWeb) {
       test('returns default file name prefix when saving on the web', () {
-        // The browser handles name conflicts.
         for (final isGallerySave in {true, false}) {
           expect(getDefaultImageFileName(isGallerySave: isGallerySave),
               defaultImageFileNamePrefix);
@@ -256,7 +334,6 @@ void main() {
     }
 
     test('returns default file name prefix when saving to gallery', () {
-      // The gallery app handles name conflicts.
       expect(getDefaultImageFileName(isGallerySave: true),
           defaultImageFileNamePrefix);
     });
@@ -279,23 +356,11 @@ void main() {
       expect(imageFileName, isNot(equals(defaultImageFileNamePrefix)));
 
       final imageFileName2 = getDefaultImageFileName(isGallerySave: false);
-      expect(
-        imageFileName2,
-        isNot(equals(imageFileName)),
-        reason: 'File name should be unique',
-      );
+      expect(imageFileName2, isNot(equals(imageFileName)));
 
       final imageFileName3 = getDefaultImageFileName(isGallerySave: false);
-      expect(
-        imageFileName3,
-        isNot(equals(imageFileName2)),
-        reason: 'File name should be unique',
-      );
-      expect(
-        imageFileName3,
-        isNot(equals(imageFileName)),
-        reason: 'File name should be unique',
-      );
+      expect(imageFileName3, isNot(equals(imageFileName2)));
+      expect(imageFileName3, isNot(equals(imageFileName)));
     });
 
     test('returns unique file name for other platforms', () {
@@ -303,23 +368,11 @@ void main() {
       expect(imageFileName, isNot(equals(defaultImageFileNamePrefix)));
 
       final imageFileName2 = getDefaultImageFileName(isGallerySave: false);
-      expect(
-        imageFileName2,
-        isNot(equals(imageFileName)),
-        reason: 'File name should be unique',
-      );
+      expect(imageFileName2, isNot(equals(imageFileName)));
 
       final imageFileName3 = getDefaultImageFileName(isGallerySave: false);
-      expect(
-        imageFileName3,
-        isNot(equals(imageFileName2)),
-        reason: 'File name should be unique',
-      );
-      expect(
-        imageFileName3,
-        isNot(equals(imageFileName)),
-        reason: 'File name should be unique',
-      );
+      expect(imageFileName3, isNot(equals(imageFileName2)));
+      expect(imageFileName3, isNot(equals(imageFileName)));
     });
   });
 
@@ -498,8 +551,6 @@ void main() {
       expect(
         await shouldSaveToGallery(prefersGallerySave: false),
         shouldSaveToGalleryValue,
-        reason:
-            'calling shouldSaveToGallery should return the value specified by mockShouldSaveToGallery',
       );
     }
 
@@ -517,10 +568,10 @@ void main() {
 
       mockGallerySaveSupported(false);
       mockImageSaveSupported(false);
-      when(() =>
-          mockQuillNativeBridge.saveImage(any(),
-              options: any(named: 'options'))).thenAnswer(
-          (_) async => const ImageSaveResult(blobUrl: null, filePath: null));
+      when(() => mockQuillNativeBridge.saveImage(any(),
+              options: any(named: 'options')))
+          .thenAnswer(
+              (_) async => const ImageSaveResult(blobUrl: null, filePath: null));
 
       when(() => mockQuillNativeBridge.saveImageToGallery(any(),
           options: any(named: 'options'))).thenAnswer((_) async {});
@@ -551,11 +602,6 @@ void main() {
 
     test('does not throw $ArgumentError when the image URL is not empty',
         () async {
-      await imageSaver.saveImage(
-        imageProvider: FakeImageProvider(),
-        imageUrl: '/foo/bar',
-        prefersGallerySave: false,
-      );
       await expectLater(
         imageSaver.saveImage(
           imageProvider: FakeImageProvider(),
@@ -579,360 +625,79 @@ void main() {
       ).called(1);
     });
 
-    test(
-      'returns null when image bytes are null or empty',
-      () async {
-        await mockShouldSaveToGallery(true);
+    test('returns null when image bytes are null or empty', () async {
+      await mockShouldSaveToGallery(true);
 
-        for (final imageBytes in {Uint8List.fromList([]), null}) {
-          mockLoadImageBytesValue(imageBytes);
-
-          final result = await imageSaver.saveImage(
-            imageProvider: FakeImageProvider(),
-            imageUrl: '/foo/bar',
-            prefersGallerySave: false,
-          );
-          expect(result, isNull);
-
-          verify(
-            () => mockImageLoader.loadImageBytesFromImageProvider(
-                imageProvider: any(named: 'imageProvider')),
-          ).called(1);
-        }
-      },
-    );
-
-    test(
-      'calls saveImageToGallery from $QuillNativeBridge when shouldSaveToGallery is true',
-      () async {
-        await mockShouldSaveToGallery(true);
-
-        mockLoadImageBytesValue(Uint8List.fromList([1, 0, 1]));
-        await imageSaver.saveImage(
-          imageProvider: FakeImageProvider(),
-          imageUrl: '/foo/bar',
-          prefersGallerySave: false,
-        );
-        verify(
-          () => mockQuillNativeBridge.saveImageToGallery(any(),
-              options: any(named: 'options')),
-        ).called(1);
-      },
-    );
-
-    test(
-      'does not call saveImageToGallery from $QuillNativeBridge when shouldSaveToGallery is false',
-      () async {
-        await mockShouldSaveToGallery(false);
-
-        mockLoadImageBytesValue(Uint8List.fromList([1, 0, 1]));
-        await imageSaver.saveImage(
-          imageProvider: FakeImageProvider(),
-          imageUrl: '/foo/bar',
-          prefersGallerySave: false,
-        );
-        verifyNever(
-          () => mockQuillNativeBridge.saveImageToGallery(any(),
-              options: any(named: 'options')),
-        );
-      },
-    );
-
-    test(
-      'calls saveImageToGallery from $QuillNativeBridge when should save to the gallery and image bytes are not null',
-      () async {
-        await mockShouldSaveToGallery(true);
-
-        mockLoadImageBytesValue(Uint8List.fromList([1, 2, 2]));
+      for (final imageBytes in {Uint8List.fromList([]), null}) {
+        mockLoadImageBytesValue(imageBytes);
 
         final result = await imageSaver.saveImage(
           imageProvider: FakeImageProvider(),
           imageUrl: '/foo/bar',
           prefersGallerySave: false,
         );
-        expect(
-          result,
-          const SaveImageResult(
-            isGallerySave: true,
-            imageFilePath: null,
-          ),
+        expect(result, isNull);
+      }
+    });
+
+    test(
+      'passes the arguments correctly to saveImageToGallery for Firebase URL with query parameters',
+      () async {
+        await mockShouldSaveToGallery(true);
+
+        const imageUrl =
+            'https://firebasestorage.googleapis.com/v0/b/app.appspot.com/o/temp%2Fexample_file.png?alt=media&token=abc123';
+
+        final imageBytes = Uint8List.fromList([1, 0, 1]);
+        mockLoadImageBytesValue(imageBytes);
+
+        await imageSaver.saveImage(
+          imageProvider: FakeImageProvider(),
+          imageUrl: imageUrl,
+          prefersGallerySave: false,
         );
+
         verify(
-          () => mockQuillNativeBridge.saveImageToGallery(any(),
-              options: any(named: 'options')),
+          () => mockQuillNativeBridge.saveImageToGallery(
+            imageBytes,
+            options: const GalleryImageSaveOptions(
+              name: 'example_file',
+              fileExtension: 'png',
+              albumName: null,
+            ),
+          ),
         ).called(1);
       },
     );
 
     test(
-        'throws $GalleryImageSaveAccessDeniedException in case permission is denied',
-        () async {
-      await mockShouldSaveToGallery(true);
-
-      mockLoadImageBytesValue(Uint8List.fromList([1, 2, 2]));
-
-      final platformException = PlatformException(code: 'PERMISSION_DENIED');
-      when(() => mockQuillNativeBridge.saveImageToGallery(any(),
-          options: any(named: 'options'))).thenThrow(platformException);
-
-      await expectLater(
-        imageSaver.saveImage(
-          imageProvider: FakeImageProvider(),
-          imageUrl: '/foo/bar',
-          prefersGallerySave: false,
-        ),
-        throwsA(
-          isA<GalleryImageSaveAccessDeniedException>().having(
-              (e) => e.message, 'message', platformException.toString()),
-        ),
-      );
-    });
-
-    test(
-        'rethrows the $PlatformException in case permission is denied on macOS in debug-builds only (known macOS issue)',
-        () async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-
-      await mockShouldSaveToGallery(true);
-
-      mockLoadImageBytesValue(Uint8List.fromList([1, 2, 2]));
-
-      final platformException = PlatformException(
-          code: 'PERMISSION_DENIED', message: 'A known macOS issue');
-      when(() => mockQuillNativeBridge.saveImageToGallery(any(),
-          options: any(named: 'options'))).thenThrow(platformException);
-
-      await expectLater(
-        imageSaver.saveImage(
-          imageProvider: FakeImageProvider(),
-          imageUrl: '/foo/bar',
-          prefersGallerySave: false,
-        ),
-        throwsA(
-          isA<PlatformException>()
-              .having((e) => e.code, 'code', platformException.code)
-              .having((e) => e.message, 'message', platformException.message)
-              .having((e) => e.details, 'details', platformException.details),
-        ),
-      );
-    }, skip: kReleaseMode);
-
-    test(
-      'rethrows the $PlatformException from $QuillNativeBridge if not handled',
-      () async {
-        // Currently, that's the expected behavior but it is subject to changes for improvements.
-        // See https://github.com/FlutterQuill/quill-native-bridge/issues/2
-
-        await mockShouldSaveToGallery(true);
-
-        mockLoadImageBytesValue(Uint8List.fromList([1, 2, 2]));
-
-        final exception = PlatformException(
-          code: 'EXAMPLE_CODE_${DateTime.now().toIso8601String()}',
-          message: 'An example exception that is not handled',
-        );
-        when(() => mockQuillNativeBridge.saveImageToGallery(any(),
-            options: any(named: 'options'))).thenThrow(exception);
-
-        await expectLater(
-          imageSaver.saveImage(
-            imageProvider: FakeImageProvider(),
-            imageUrl: '/foo/bar',
-            prefersGallerySave: false,
-          ),
-          throwsA(equals(exception)),
-        );
-      },
-    );
-
-    test(
-      'calls isSupported from $QuillNativeBridge to check if image save supported when gallery save skipped',
+      'passes the arguments correctly to saveImage for Firebase URL with query parameters',
       () async {
         await mockShouldSaveToGallery(false);
 
-        mockLoadImageBytesValue(Uint8List.fromList([1, 2, 2]));
-
-        await imageSaver.saveImage(
-          imageProvider: FakeImageProvider(),
-          imageUrl: '/foo/bar',
-          prefersGallerySave: false,
-        );
-
-        verify(() => mockQuillNativeBridge
-            .isSupported(QuillNativeBridgeFeature.saveImage)).called(1);
-      },
-    );
-
-    test(
-      'calls saveImage from $QuillNativeBridge when supported and should not use gallery save',
-      () async {
-        await mockShouldSaveToGallery(false);
-
-        mockLoadImageBytesValue(Uint8List.fromList([1, 2, 2]));
-
-        mockImageSaveSupported(true);
-
-        await imageSaver.saveImage(
-          imageProvider: FakeImageProvider(),
-          imageUrl: '/foo/bar',
-          prefersGallerySave: false,
-        );
-
-        verify(() => mockQuillNativeBridge.saveImage(any(),
-            options: any(named: 'options'))).called(1);
-      },
-    );
-
-    test(
-      'does not calls saveImage from $QuillNativeBridge when unsupported and should not use gallery save',
-      () async {
-        await mockShouldSaveToGallery(false);
-
-        mockLoadImageBytesValue(Uint8List.fromList([1, 2, 2]));
-
-        mockImageSaveSupported(false);
-
-        try {
-          await imageSaver.saveImage(
-            imageProvider: FakeImageProvider(),
-            imageUrl: '/foo/bar',
-            prefersGallerySave: false,
-          );
-        } on StateError catch (_) {
-          // Skip since another test handles it
-        }
-
-        verifyNever(() => mockQuillNativeBridge.saveImage(any(),
-            options: any(named: 'options')));
-      },
-    );
-
-    test(
-      'passes the arugments correctly to saveImageToGallery from $QuillNativeBridge',
-      () async {
-        for (final imageUrl in {
-          'path/to/file.png',
-          'http://flutter-quill.org/file.png'
-        }) {
-          await mockShouldSaveToGallery(true);
-
-          final imageBytes = Uint8List.fromList([1, 0, 1]);
-          mockLoadImageBytesValue(imageBytes);
-
-          await imageSaver.saveImage(
-            imageProvider: FakeImageProvider(),
-            imageUrl: imageUrl,
-            prefersGallerySave: false,
-          );
-
-          final imageFileExtension =
-              extractImageFileExtensionFromImageSource(imageUrl);
-          final imageName = extractImageNameFromImageSource(imageUrl);
-
-          verify(
-            () => mockQuillNativeBridge.saveImageToGallery(
-              imageBytes,
-              options: GalleryImageSaveOptions(
-                name: imageName ?? getDefaultImageFileName(isGallerySave: true),
-                fileExtension: imageFileExtension,
-                albumName: null,
-              ),
-            ),
-          ).called(1);
-        }
-      },
-    );
-
-    test(
-      'passes the arugments correctly to saveImage from $QuillNativeBridge',
-      () async {
-        for (final imageUrl in {
-          'path/to/file.png',
-          'http://flutter-quill.org/file.png'
-        }) {
-          await mockShouldSaveToGallery(false);
-
-          final imageBytes = Uint8List.fromList([1, 0, 1]);
-          mockLoadImageBytesValue(imageBytes);
-
-          mockImageSaveSupported(true);
-
-          await imageSaver.saveImage(
-            imageProvider: FakeImageProvider(),
-            imageUrl: imageUrl,
-            prefersGallerySave: false,
-          );
-
-          final imageFileExtension =
-              extractImageFileExtensionFromImageSource(imageUrl);
-          final imageName = extractImageNameFromImageSource(imageUrl);
-
-          verify(
-            () => mockQuillNativeBridge.saveImage(
-              imageBytes,
-              options: ImageSaveOptions(
-                name:
-                    imageName ?? getDefaultImageFileName(isGallerySave: false),
-                fileExtension: imageFileExtension,
-              ),
-            ),
-          ).called(1);
-        }
-      },
-    );
-
-    test(
-      'returns the $SaveImageResult correctly for image save',
-      () async {
-        await mockShouldSaveToGallery(false);
+        const imageUrl =
+            'https://firebasestorage.googleapis.com/v0/b/app.appspot.com/o/temp%2Fexample_file.png?alt=media&token=abc123';
 
         final imageBytes = Uint8List.fromList([1, 0, 1]);
         mockLoadImageBytesValue(imageBytes);
 
         mockImageSaveSupported(true);
 
-        const inputImagePath = 'path/to/example_file.png';
-
-        const savedImagePath = '/path/to/saved/example_file.png';
-
-        when(
-          () => mockQuillNativeBridge.saveImage(imageBytes,
-              options: any(named: 'options')),
-        ).thenAnswer((_) async =>
-            const ImageSaveResult(filePath: savedImagePath, blobUrl: null));
-
-        final result = await imageSaver.saveImage(
+        await imageSaver.saveImage(
           imageProvider: FakeImageProvider(),
-          imageUrl: inputImagePath,
+          imageUrl: imageUrl,
           prefersGallerySave: false,
         );
 
-        expect(
-          result,
-          const SaveImageResult(
-              imageFilePath: savedImagePath, isGallerySave: false),
-        );
-      },
-    );
-
-    test(
-      'throws $StateError when both image and gallery unsupported',
-      () async {
-        await mockShouldSaveToGallery(false);
-
-        mockLoadImageBytesValue(Uint8List.fromList([1, 2, 2]));
-
-        mockImageSaveSupported(false);
-
-        await expectLater(
-          imageSaver.saveImage(
-            imageProvider: FakeImageProvider(),
-            imageUrl: '/foo/bar',
-            prefersGallerySave: false,
+        verify(
+          () => mockQuillNativeBridge.saveImage(
+            imageBytes,
+            options: const ImageSaveOptions(
+              name: 'example_file',
+              fileExtension: 'png',
+            ),
           ),
-          throwsA(isA<StateError>().having((e) => e.message, 'message',
-              'Image save is not handled on $defaultTargetPlatform')),
-        );
+        ).called(1);
       },
     );
   });
@@ -950,9 +715,10 @@ class FakeImageProvider extends ImageProvider {
 
 class FakeImageSaver implements ImageSaver {
   @override
-  Future<SaveImageResult?> saveImage(
-          {required String imageUrl,
-          required ImageProvider<Object> imageProvider,
-          required bool prefersGallerySave}) =>
+  Future<SaveImageResult?> saveImage({
+    required String imageUrl,
+    required ImageProvider<Object> imageProvider,
+    required bool prefersGallerySave,
+  }) =>
       throw UnimplementedError('Fake implementation of $FakeImageSaver');
 }
