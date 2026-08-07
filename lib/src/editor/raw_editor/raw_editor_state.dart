@@ -54,6 +54,9 @@ class QuillRawEditorState extends EditorState
   StreamSubscription<bool>? _keyboardVisibilitySubscription;
   bool _keyboardVisible = false;
 
+  @override
+  bool onFocusReceived() => false;
+
   // Selection overlay
   @override
   EditorTextSelectionOverlay? get selectionOverlay => _selectionOverlay;
